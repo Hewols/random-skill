@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>랜덤 스킬 PVP</title>
+<style>
+  /* 기본 스타일 */
+  body {
+    background: #121212;
+    color: #eee;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0; padding: 0;
+  }
+  main {
+    max-width: 960px;
+    margin: 20px auto;
+    padding: 0 10px;
+  }
+  h1, h2, h3 {
+    margin-bottom: 12px;
+  }
+  /* 탭 버튼 스타일 */
+  .tab-buttons {
+    display: flex;
+    border-bottom: 2px solid #333;
+    margin-bottom: 20px;
+  }
+  .tab-button {
+    flex: 1;
+    padding: 12px 0;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    background: #222;
+    color: #bbb;
+    font-weight: 600;
+    transition: background-color 0.3s, color 0.3s;
+    border-bottom: 3px solid transparent;
+  }
+  .tab-button.active {
+    background: #333;
+    color: #fff;
+    border-bottom-color: #4caf50;
+  }
+
+  /* 탭 컨텐츠 영역 */
+  .tab-content {
+    display: none;
+  }
+  .tab-content.active {
+    display: block;
+  }
+
+  /* 슬롯 섹션 */
+  .slot-section {
+    margin-bottom: 40px;
+  }
+  .slot-section h3 {
+    margin-bottom: 10px;
+    color: #4caf50;
+  }
+
+  /* 스킬 카드 슬라이더 래퍼 */
+  .skill-slider-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  /* 좌우 화살표 버튼 */
+  .arrow {
+    background: #333;
+    border: none;
+    color: #bbb;
+    font-size: 24px;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.3s, color 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .arrow:hover {
+    background: #4caf50;
+    color: white;
+  }
+
+  /* 스킬 카드 슬라이더 */
+  .skill-slider {
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    display: flex;
+    gap: 12px;
+    padding: 10px 5px;
+    margin: 0 10px;
+    flex-grow: 1;
+  }
+  /* 스크롤바 숨기기 (모던 브라우저) */
+  .skill-slider::-webkit-scrollbar {
+    display: none;
+  }
+  .skill-slider {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  /* 스킬 카드 */
+  .skill-card {
+    min-width: 120px;
+    padding: 16px 12px;
+    background: #222;
+    border-radius: 8px;
+    box-shadow: 0 0 6px rgba(0,0,0,0.6);
+    cursor: pointer;
+    user-select: none;
+    text-align: center;
+    color: #ddd;
+    font-weight: 600;
+    transition: transform 0.3s, box-shadow 0.3s, background-color 0.3s;
+    display: flex;
+    align-items: center;
+  }
+  .skill-card:hover {
+    background-color: #2e7d32;
+    box-shadow: 0 0 15px #4caf50;
+    transform: translateY(-5px);
+    color: white;
+  }
+  .skill-card.selected {
+    border: 2px solid #4caf50;
+    background-color: #388e3c;
+    box-shadow: 0 0 20px #4caf50;
+    color: white;
+  }
+  .skill-card img {
+    width: 32px;
+    height: 32px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    border-radius: 4px;
+  }
+  .skill-card .skill-name {
+    flex-grow: 1;
+    text-align: left;
+  }
+
+  /* 슬롯 상세 정보 */
+  .slot-detail {
+    margin-top: 12px;
+    background: #222;
+    border-radius: 8px;
+    padding: 15px 20px;
+    box-shadow: 0 0 10px rgba(76,175,80,0.6);
+    min-height: 70px;
+    color: #eee;
+    font-weight: 500;
+    transition: max-height 0.4s ease, opacity 0.4s ease;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+  .slot-detail.open {
+    max-height: 150px;
+    opacity: 1;
+  }
+  .slot-detail h4 {
+    margin: 0 0 8px 0;
+    color: #a5d6a7;
+    display: flex;
+    align-items: center;
+  }
+  .slot-detail h4 img {
+    width: 28px;
+    height: 28px;
+    margin-right: 10px;
+    border-radius: 4px;
+  }
+  .slot-detail .cooldown {
+    font-size: 0.85em;
+    color: #a5d6a7;
+    margin-left: auto;
+  }
+  .slot-detail p {
+    margin: 0;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+<main>
+  <h1>랜덤 스킬 PVP</h1>
+  <div class="tab-buttons">
+    <div class="tab-button active" data-tab="content">컨텐츠 설명</div>
+    <div class="tab-button" data-tab="skills">스킬 탭</div>
+  </div>
+
+  <section id="content" class="tab-content active">
+    <h2>게임 진행 방식</h2>
+    <p>배틀로얄 방식으로 진행되며, 매 게임마다 41종의 스킬 중 랜덤으로 5가지 스킬이 중복 없이 지급됩니다.</p>
+    <p>각 스킬 슬롯마다 1개씩 무작위로 지정되어 총 5개의 스킬이 주어집니다.</p>
+    <p>스킬을 전략적으로 사용하여 최후의 1인이 되세요!</p>
+  </section>
+
+  <section id="skills" class="tab-content">
+
+    <!-- 슬롯 1 -->
+    <div class="slot-section" data-slot="1">
+      <h3>1번 슬롯</h3>
+      <div class="skill-slider-wrapper">
+        <button class="arrow left" aria-label="이전 스킬" title="이전 스킬">&#9664;</button>
+        <div class="skill-slider">
+          <div class="skill-card" data-skillname="아케인 슬래시" data-skilldesc="전방을 빠르게 공격합니다." data-cooldown="3" data-img="images/icon_arcane_slash.png">
+            <img src="images/icon_arcane_slash.png" alt="아케인 슬래시">
+            <div class="skill-name">아케인 슬래시</div>
+          </div>
+          <div class="skill-card" data-skillname="프로스트 스트라이크" data-skilldesc="전방을 향해 공격합니다." data-cooldown="3" data-img="images/icon_frost_strike.png">
+            <img src="images/icon_frost_strike.png" alt="프로스트 스트라이크">
+            <div class="skill-name">프로스트 스트라이크</div>
+          </div>
+          <div class="skill-card" data-skillname="홀리 스트라이크" data-skilldesc="전방을 향해 공격합니다." data-cooldown="3" data-img="images/icon_holy_strike.png">
+            <img src="images/icon_holy_strike.png" alt="홀리 스트라이크">
+            <div class="skill-name">홀리 스트라이크</div>
+          </div>
+          <div class="skill-card" data-skillname="블래이드 슬래시" data-skilldesc="전방을 향해 공격합니다." data-cooldown="3" data-img="images/icon_blade_slash.png">
+            <img src="images/icon_blade_slash.png" alt="블래이드 슬래시">
+            <div class="skill-name">블래이드 슬래시</div>
+          </div>
+          <div class="skill-card" data-skillname="바위 투척" data-skilldesc="전방을 향해 바위를 던집니다." data-cooldown="3" data-img="images/icon_earth_toss.png">
+            <img src="images/icon_earth_toss.png" alt="바위 투척">
+            <div class="skill-name">바위 투척</div>
+          </div>
+          <div class="skill-card" data-skillname="퀵 샷" data-skilldesc="전방을 향해 화살을 발사합니다." data-cooldown="3" data-img="images/icon_quick_shot.png">
+            <img src="images/icon_quick_shot.png" alt="퀵 샷">
+            <div class="skill-name">퀵 샷</div>
+          </div>
+          <div class="skill-card" data-skillname="서리 창" data-skilldesc="전방을 향해 서리 창을 날립니다." data-cooldown="5" data-img="images/icon_glacial_impalement.png">
+            <img src="images/icon_glacial_impalement.png" alt="서리 창">
+            <div class="skill-name">서리 창</div>
+          </div>
+          <div class="skill-card" data-skillname="깨지지 않는 의지" data-skilldesc="전방에 방패를 펼치고 돌진합니다" data-cooldown="5" data-img="images/icon_unbreakable_will.png">
+            <img src="images/icon_unbreakable_will.png" alt="깨지지 않는 의지">
+            <div class="skill-name">깨지지 않는 의지</div>
+          </div>
+        </div>
+        <button class="arrow right" aria-label="다음 스킬" title="다음 스킬">&#9654;</button>
+      </div>
+      <div class="slot-detail"></div>
+    </div>
+
+    <!-- 슬롯 2 -->
+    <div class="slot-section" data-slot="2">
+      <h3>2번 슬롯</h3>
+      <div class="skill-slider-wrapper">
+        <button class="arrow left" aria-label="이전 스킬" title="이전 스킬">&#9664;</button>
+        <div class="skill-slider">
+          <!-- 10개 스킬 카드 예시 (이미지, 이름, 설명, 쿨타임은 적당히 바꿔서 추가) -->
+          <div class="skill-card" data-skillname="대시" data-skilldesc="전방으로 빠르게 돌진하고 피해를 입힙니다." data-cooldown="5" data-img="images/icon_dash.png">
+            <img src="images/icon_dash.png" alt="대시">
+            <div class="skill-name">대시</div>
+          </div>
+          <div class="skill-card" data-skillname="백스텝" data-skilldesc="뒷쪽으로 빠르게 점프합니다." data-cooldown="5" data-img="images/icon_backstep.png">
+            <img src="images/icon_backstep.png" alt="백스텝">
+            <div class="skill-name">백스텝</div>
+          </div>
+          <div class="skill-card" data-skillname="단검 날리기" data-skilldesc="부채꼴 모양으로 단검을 날립니다." data-cooldown="6" data-img="images/icon_dagger_throw.png">
+            <img src="images/icon_dagger_throw.png" alt="단검 날리기">
+            <div class="skill-name">단검 날리기</div>
+          </div>
+          <div class="skill-card" data-skillname="기공탄" data-skilldesc="전방에 기공탄을 날립니다." data-cooldown="5" data-img="images/icon_chi_blast.png">
+            <img src="images/icon_chi_blast.png" alt="기공탄">
+            <div class="skill-name">기공탄</div>
+          </div>
+          <div class="skill-card" data-skillname="클록 오브 헤이스터" data-skilldesc="전방에 고스트를 소환합니다. 소환된 고스트는 부채꼴 모양으로 마법을 날리며 맞춘 적을 잠시동안 뒤로 이동시킵니다." data-cooldown="5" data-img="images/icon_cloak_of_hastur.png">
+            <img src="images/icon_cloak_of_hastur.png" alt="클록 오브 헤이스터">
+            <div class="skill-name">클록 오브 헤이스터</div>
+          </div>
+          <div class="skill-card" data-skillname="데들리 자벨린" data-skilldesc="전방에 거대한 창을 발사합니다." data-cooldown="5" data-img="images/icon_deadly_javelin.png">
+            <img src="images/icon_deadly_javelin.png" alt="데들리 자벨린">
+            <div class="skill-name">데들리 자벨린</div>
+          </div>
+          <div class="skill-card" data-skillname="꿰뚫는 수리검" data-skilldesc="전방에 수리검을 날립니다. 날아간 수리검에 맞은 적 주변 적에게 팅겨져 날아갑니다." data-cooldown="5" data-img="images/icon_piercing_shuriken.png">
+            <img src="images/icon_piercing_shuriken.png" alt="꿰뚫는 수리검">
+            <div class="skill-name">꿰뚫는 수리검</div>
+          </div>
+          <div class="skill-card" data-skillname="핏빛 슬래시" data-skilldesc="전방을 향해 공격합니다." data-cooldown="6" data-img="images/icon_blood_slash.png">
+            <img src="images/icon_blood_slash.png" alt="핏빛 슬래시">
+            <div class="skill-name">핏빛 슬래시</div>
+          </div>
+        </div>
+        <button class="arrow right" aria-label="다음 스킬" title="다음 스킬">&#9654;</button>
+      </div>
+      <div class="slot-detail"></div>
+    </div>
+
+    <!-- 슬롯 3 -->
+    <div class="slot-section" data-slot="3">
+      <h3>3번 슬롯</h3>
+      <div class="skill-slider-wrapper">
+        <button class="arrow left" aria-label="이전 스킬" title="이전 스킬">&#9664;</button>
+        <div class="skill-slider">
+          <div class="skill-card" data-skillname="공허 사슬" data-skilldesc="전방에 사슬을 소환하여 공격합니다." data-cooldown="7" data-img="images/icon_chains_of_void.png">
+            <img src="images/icon_chains_of_void.png" alt="공허 사슬">
+            <div class="skill-name">공허 사슬</div>
+          </div>
+          <div class="skill-card" data-skillname="메테오 스톰" data-skilldesc="하늘에 거대한 운석을 소환하여 전방으로 떨굽니다." data-cooldown="7" data-img="images/icon_meteor_storm.png">
+            <img src="images/icon_meteor_storm.png" alt="메테오 스톰">
+            <div class="skill-name">메테오 스톰</div>
+          </div>
+          <div class="skill-card" data-skillname="윈드레이저" data-skilldesc="전방 부채꼴 모양으로 화살을 발사합니다." data-cooldown="8" data-img="images/icon_windrazor.png">
+            <img src="images/icon_windrazor.png" alt="윈드레이저">
+            <div class="skill-name">윈드레이저</div>
+          </div>
+          <div class="skill-card" data-skillname="업보의 구슬" data-skilldesc="플레이어 주변에 돌아가는 구슬을 소환합니다. 범위 내에 있는 모든 적에게 피해를 입힙니다." data-cooldown="10" data-img="images/icon_beads_of_karma.png">
+            <img src="images/icon_beads_of_karma.png" alt="업보의 구슬">
+            <div class="skill-name">업보의 구슬</div>
+          </div>
+          <div class="skill-card" data-skillname="셰도우 워크" data-skilldesc="시전 시 잠시 동안 투명화 상태로 들어갑니다. 이동속도가 빨라집니다." data-cooldown="8" data-img="images/icon_shadow_walk.png">
+            <img src="images/icon_shadow_walk.png" alt="셰도우 워크">
+            <div class="skill-name">셰도우 워크</div>
+          </div>
+          <div class="skill-card" data-skillname="던지기" data-skilldesc="전방에 있는 적을 플레이어 뒤로 던집니다." data-cooldown="6" data-img="images/icon_zen_throw.png">
+            <img src="images/icon_zen_throw.png" alt="던지기">
+            <div class="skill-name">던지기</div>
+          </div>
+          <div class="skill-card" data-skillname="아쿠아 윕" data-skilldesc="시전 시 플레이어 주변에 물 기둥을 소환하여 전방에 있는 적에게 피해를 입힙니다." data-cooldown="6" data-img="images/icon_aqua_whip.png">
+            <img src="images/icon_aqua_whip.png" alt="아쿠아 윕">
+            <div class="skill-name">아쿠아 윕</div>
+          </div>
+          <div class="skill-card" data-skillname="블리자드" data-skilldesc="바라보는 곳에 고드름을 내리는 구간을 소환합니다. 소환된 구간 범위 내에 있는 모든 적에게 피해를 입힙니다." data-cooldown="5" data-img="images/icon_blizzard.png">
+            <img src="images/icon_blizzard.png" alt="블리자드">
+            <div class="skill-name">블리자드</div>
+          </div>
+        </div>
+        <button class="arrow right" aria-label="다음 스킬" title="다음 스킬">&#9654;</button>
+      </div>
+      <div class="slot-detail"></div>
+    </div>
+
+    <!-- 슬롯 4 -->
+    <div class="slot-section" data-slot="4">
+      <h3>4번 슬롯</h3>
+      <div class="skill-slider-wrapper">
+        <button class="arrow left" aria-label="이전 스킬" title="이전 스킬">&#9664;</button>
+        <div class="skill-slider">
+          <div class="skill-card" data-skillname="아크틱 차지" data-skilldesc="시전 시 용의 형상을 한 서리를 소환합니다. 소환된 용의 형상은 바라보는 방향으로 돌진합니다." data-cooldown="8" data-img="images/icon_arctic_charge.png">
+            <img src="images/icon_arctic_charge.png" alt="아크틱 차지">
+            <div class="skill-name">아크틱 차지</div>
+          </div>
+          <div class="skill-card" data-skillname="아케인 디베스테이션" data-skilldesc="바라보는 곳에 소환진을 펼치고 정신 집중 상태가 됩니다. 정신 집중 상태에서 서서히 위로 솟아오르며 소환진에 번개를 내리칩니다. 소환진 내에 있는 모든 적에게  피해를 입힙니다." data-cooldown="13" data-img="images/icon_arcane_devastation.png">
+            <img src="images/icon_arcane_devastation.png" alt="아케인 디베스테이션">
+            <div class="skill-name">아케인 디베스테이션</div>
+          </div>
+          <div class="skill-card" data-skillname="익스트림 윈드" data-skilldesc="바라보는 곳에 새를 소환합니다. 소환된 새는 소용돌이를 소환하여 적에게 피해를 입힙니다." data-cooldown="8" data-img="images/icon_extreme_wind.png">
+            <img src="images/icon_extreme_wind.png" alt="익스트림 윈드">
+            <div class="skill-name">익스트림 윈드</div>
+          </div>
+          <div class="skill-card" data-skillname="빙하 붕괴" data-skilldesc="전방으로 크기 점프하고 낙하 지점에 있는 모든 적에게 피해를 입힙니다." data-cooldown="8" data-img="images/icon_glacier_smash.png">
+            <img src="images/icon_glacier_smash.png" alt="빙하 붕괴">
+            <div class="skill-name">빙하 붕괴</div>
+          </div>
+          <div class="skill-card" data-skillname="오버히트" data-skilldesc="전방 바닥에서 드래곤의 머리가 소환됩니다. 소환된 드래곤의 머리는 플레이어가 바라보는 방향으로 레이저를 발사합니다." data-cooldown="10" data-img="images/icon_overheat.png">
+            <img src="images/icon_overheat.png" alt="오버히트">
+            <div class="skill-name">오버히트</div>
+          </div>
+          <div class="skill-card" data-skillname="테라 바리케이드" data-skilldesc="땅속성의 골렘을 소환합니다. 골렘은 전방에 바리케이드를 세워 전방으로 밀쳐 보냅니다." data-cooldown="8" data-img="images/icon_terra_barricade.png">
+            <img src="images/icon_terra_barricade.png" alt="테라 바리케이드">
+            <div class="skill-name">테라 바리케이드</div>
+          </div>
+          <div class="skill-card" data-skillname="언더월드 비스트" data-skilldesc="전방에 드래곤의 머리를 소환합니다. 소환된 드래곤의 머리 주변에 있는 모든 적을 위로 띄웁니다." data-cooldown="8" data-img="images/icon_underworld_beast.png">
+            <img src="images/icon_underworld_beast.png" alt="언더월드 비스트">
+            <div class="skill-name">언더월드 비스트</div>
+          </div>
+          <div class="skill-card" data-skillname="포비든 아트" data-skilldesc="시전 시 플레이어 범위 내에 있는 모든 적을 띄워 빠르게 공격해 피해를 입힙니다." data-cooldown="9" data-img="images/icon_forbidden_art.png">
+            <img src="images/icon_forbidden_art.png" alt="포비든 아트">
+            <div class="skill-name">포비든 아트</div>
+          </div>
+        </div>
+        <button class="arrow right" aria-label="다음 스킬" title="다음 스킬">&#9654;</button>
+      </div>
+      <div class="slot-detail"></div>
+    </div>
+	<!-- 슬롯 5 -->
+    <div class="slot-section" data-slot="5">
+      <h3>5번 슬롯</h3>
+      <div class="skill-slider-wrapper">
+        <button class="arrow left" aria-label="이전 스킬" title="이전 스킬">&#9664;</button>
+        <div class="skill-slider">
+          <div class="skill-card" data-skillname="드래곤 피어서" data-skilldesc="시전 시 플레이어가 드래곤의 머리를 소환합니다. 소환된 드래곤의 머리에서 거대한 화살이 발사됩니다." data-cooldown="13" data-img="images/icon_dragon_piercer.png">
+            <img src="images/icon_dragon_piercer.png" alt="드래곤 피어서">
+            <div class="skill-name">드래곤 피어서</div>
+          </div>
+          <div class="skill-card" data-skillname="퍼마포레스트 랜스" data-skilldesc="거대한 창을 소환하여 전방을 휩쓸어 버리면서 돌진합니다." data-cooldown="15" data-img="images/icon_permafrost_lance.png">
+            <img src="images/icon_permafrost_lance.png" alt="퍼마포레스트 랜스">
+            <div class="skill-name">퍼마포레스트 랜스</div>
+          </div>
+          <div class="skill-card" data-skillname="해머 오브 저스티스" data-skilldesc="전방에 해머를 내리칩니다. 내리친 방향의 아래에서 무언가 폭발해 기둥이 생성됩니다." data-cooldown="13" data-img="images/icon_hammer_of_justice.png">
+            <img src="images/icon_hammer_of_justice.png" alt="해머 오브 저스티스">
+            <div class="skill-name">해머 오브 저스티스</div>
+          </div>
+          <div class="skill-card" data-skillname="라스트 스탠드" data-skilldesc="플레이어 등 뒤에 날개가 생성되며 전방을 빠르게 휩쓸어 버립니다. 날렵하게 움직여 정신을 혼란스럽게 합니다." data-cooldown="13" data-img="images/icon_last_stand.png">
+            <img src="images/icon_last_stand.png" alt="라스트 스탠드">
+            <div class="skill-name">라스트 스탠드</div>
+          </div>
+          <div class="skill-card" data-skillname="드래곤 피스트" data-skilldesc="거대한 양 손을 생성하고 전방을 묵직하게 공격합니다." data-cooldown="15" data-img="images/icon_dragon_fists.png">
+            <img src="images/icon_dragon_fists.png" alt="드래곤 피스트">
+            <div class="skill-name">드래곤 피스트</div>
+          </div>
+          <div class="skill-card" data-skillname="블래이드 댄스" data-skilldesc="주변에 있는 적에게 돌진하여 피해를 입힙니다." data-cooldown="15" data-img="images/icon_blade_dance.png">
+            <img src="images/icon_blade_dance.png" alt="블래이드 댄스">
+            <div class="skill-name">블래이드 댄스</div>
+          </div>
+        </div>
+        <button class="arrow right" aria-label="다음 스킬" title="다음 스킬">&#9654;</button>
+      </div>
+      <div class="slot-detail"></div>
+    </div>
+  </div>
+  <script>
+  // 탭 전환 기능
+  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-tab');
+
+      tabButtons.forEach(b => b.classList.remove('active'));
+      tabContents.forEach(c => c.classList.remove('active'));
+
+      btn.classList.add('active');
+      document.getElementById(target).classList.add('active');
+    });
+  });
+
+  // 스킬 카드 클릭 시 상세 정보 표시
+  const slotSections = document.querySelectorAll('.slot-section');
+
+  slotSections.forEach(section => {
+    const skillCards = section.querySelectorAll('.skill-card');
+    const slotDetail = section.querySelector('.slot-detail');
+
+    skillCards.forEach(card => {
+      card.addEventListener('click', () => {
+        // 모든 카드에서 선택 클래스 제거
+        skillCards.forEach(c => c.classList.remove('selected'));
+        // 클릭한 카드에 선택 클래스 추가
+        card.classList.add('selected');
+
+        // 스킬 정보 읽기
+        const name = card.getAttribute('data-skillname');
+        const desc = card.getAttribute('data-skilldesc');
+        const cooldown = card.getAttribute('data-cooldown');
+        const imgSrc = card.getAttribute('data-img');
+
+        // 상세 영역에 내용 표시
+        slotDetail.innerHTML = `
+          <h4><img src="${imgSrc}" alt="${name}"> ${name} <span class="cooldown">쿨타임: ${cooldown}초</span></h4>
+          <p>${desc}</p>
+        `;
+
+        // 상세 영역 열기
+        slotDetail.classList.add('open');
+      });
+    });
+  });
+
+  // 화살표 버튼 슬라이더 기능 (선택적)
+  const skillSliders = document.querySelectorAll('.skill-slider-wrapper');
+
+  skillSliders.forEach(wrapper => {
+    const leftBtn = wrapper.querySelector('.arrow.left');
+    const rightBtn = wrapper.querySelector('.arrow.right');
+    const slider = wrapper.querySelector('.skill-slider');
+
+    leftBtn.addEventListener('click', () => {
+      slider.scrollBy({ left: -140, behavior: 'smooth' });
+    });
+    rightBtn.addEventListener('click', () => {
+      slider.scrollBy({ left: 140, behavior: 'smooth' });
+    });
+  });
+</script>
+
+
+</body>
+</html>
